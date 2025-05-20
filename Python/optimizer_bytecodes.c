@@ -511,20 +511,6 @@ dummy_func(void) {
 
     op(_LOAD_CONST, (-- value)) {
         PyObject *val = PyTuple_GET_ITEM(co->co_consts, this_instr->oparg);
-        int opcode = _Py_IsImmortal(val) ? _LOAD_CONST_INLINE_BORROW : _LOAD_CONST_INLINE;
-        REPLACE_OP(this_instr, opcode, 0, (uintptr_t)val);
-        value = sym_new_const(ctx, val);
-    }
-
-    op(_LOAD_CONST_MORTAL, (-- value)) {
-        PyObject *val = PyTuple_GET_ITEM(co->co_consts, this_instr->oparg);
-        int opcode = _Py_IsImmortal(val) ? _LOAD_CONST_INLINE_BORROW : _LOAD_CONST_INLINE;
-        REPLACE_OP(this_instr, opcode, 0, (uintptr_t)val);
-        value = sym_new_const(ctx, val);
-    }
-
-    op(_LOAD_CONST_IMMORTAL, (-- value)) {
-        PyObject *val = PyTuple_GET_ITEM(co->co_consts, this_instr->oparg);
         REPLACE_OP(this_instr, _LOAD_CONST_INLINE_BORROW, 0, (uintptr_t)val);
         value = sym_new_const(ctx, val);
     }
@@ -547,6 +533,10 @@ dummy_func(void) {
     }
 
     op(_POP_TOP_LOAD_CONST_INLINE_BORROW, (ptr/4, pop -- value)) {
+        value = sym_new_const(ctx, ptr);
+    }
+
+    op(_POP_CALL_TWO_LOAD_CONST_INLINE_BORROW, (ptr/4, unused, unused, unused, unused -- value)) {
         value = sym_new_const(ctx, ptr);
     }
 
@@ -901,12 +891,12 @@ dummy_func(void) {
             // known types, meaning we can deduce either True or False
 
             // The below check is equivalent to PyObject_TypeCheck(inst, cls)
+            PyObject *out = Py_False;
             if (inst_type == cls_o || PyType_IsSubtype(inst_type, cls_o)) {
-                sym_set_const(res, Py_True);
+                out = Py_True;
             }
-            else {
-                sym_set_const(res, Py_False);
-            }
+            sym_set_const(res, out);
+            REPLACE_OP(this_instr, _POP_CALL_TWO_LOAD_CONST_INLINE_BORROW, 0, (uintptr_t)out);
         }
     }
 
